@@ -1,0 +1,303 @@
+---
+title: "Cyclistic - Case Study 1"
+author: "Saturnino"
+date: "2022-12-01"
+output: html_document
+---
+
+This is an analysis on data from 2021-11 until 2022-10 on bike usage by Cyclistic users.
+
+## Processing data
+
+The datasets have been inspected and modified in excel prior to being loaded in R.
+
+### Documentation of cleaning and manipulation before loading data in R
+
+##### Added a “ride_length”, “day_of_week”, and “month” column to all .csv files.
+* “ride_length” is equal to “ended_at” minus “started_at” column. (=”ended_at”-“started_at”)
+* “day_of_week” created using the WEEKDAY function on column “started_at”. (=WEEKDAY(“started_at”,2)
+* “month” created using the MONTH function on column “started_at”. (=MONTH(“started_at”)
+* “ride_length” formatted as time, HH:MM:SS format.
+* “day_of_week” and “month” formatted as number with no decimals.
+
+##### Removing duplicates using the “Remove Duplicates” function in column “ride_id”.
+
+##### Checking for errors and blanks using filters for all columns.
+
+##### Not removing blanks or adding data to cells in columns “start_station_name”, “start_station_id”, “end_station_name”, “end_station_id”, “start_lat”, “start_lng”, “end_lat”, “end_lng”.
+
+##### Data for 2021-11
+* Removed 12 duplicates.
+*	Removed 53 entries where “ended_at” was before “started_at”, resulting in an error for “ride_length”. All errors are from the date 2021-11-07.
+*	Removed blank rows.
+
+##### Data for 2021-12
+*	Clean, no duplicates, blank rows, or errors.
+
+##### Data for 2022-01
+*	Clean, no duplicates, blank rows, or errors.
+
+##### Data for 2022-02
+*	Clean, no duplicates, blank rows, or errors.
+
+##### Data for 2022-03
+*	Removed 2 entries where “ended_at” was before “started_at”, resulting in an error for “ride_length”. Both errors are from the date 2022-03-05.
+*	No duplicates or blank rows.
+
+##### Data for 2022-04
+*	Clean, no duplicates, blank rows, or errors.
+
+##### Data for 2022-05
+*	Clean, no duplicates, blank rows, or errors.
+
+##### Data for 2022-06
+*	Removed 1 duplicate.
+*	No blank rows or errors.
+
+##### Data for 2022-07
+*	Removed 1 duplicate.
+*	Removed blank rows.
+*	No errors.
+
+##### Data for 2022-08
+*	Clean, no duplicates, blank rows, or errors.
+
+##### Data for 2022-09
+*	Clean, no duplicates, blank rows, or errors.
+
+##### Data for 2022-10
+*	Removed 4 entries where “ended_at” was before “started_at”, resulting in an error for “ride_length”. Errors dated: 2022-10-03, 2022-10-13, 2022-10-21, 2022-10-24.
+*	No duplicates or blank rows.
+
+### Loadint data into R
+
+```{r Loading data}
+#Loading libraries
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+
+#Setting current folder to dataset location
+setwd("F:/case_study_1_cyclistic")
+
+#Loading .csv files
+data_21_11 <- read.csv("202111-divvy-tripdata.csv")
+data_21_12 <- read.csv("202112-divvy-tripdata.csv")
+data_22_01 <- read.csv("202201-divvy-tripdata.csv")
+data_22_02 <- read.csv("202202-divvy-tripdata.csv")
+data_22_03 <- read.csv("202203-divvy-tripdata.csv")
+data_22_04 <- read.csv("202204-divvy-tripdata.csv")
+data_22_05 <- read.csv("202205-divvy-tripdata.csv")
+data_22_06 <- read.csv("202206-divvy-tripdata.csv")
+data_22_07 <- read.csv("202207-divvy-tripdata.csv")
+data_22_08 <- read.csv("202208-divvy-tripdata.csv")
+data_22_09 <- read.csv("202209-divvy-publictripdata.csv")
+data_22_10 <- read.csv("202210-divvy-tripdata.csv")
+```
+
+### Data manipulation in R
+
+##### After loading the data we combine it into one dataset "data_year".
+
+```{r Creating dataset}
+#Combining all months into one dataset
+data_year <- bind_rows(data_21_11, data_21_12, data_22_01, data_22_02, data_22_03, data_22_04, data_22_05, data_22_06, data_22_07, data_22_08, data_22_09, data_22_10)
+```
+
+##### Calculating ride length into seconds for easier calculation later, adding results into a new column "ride_length_2".
+
+```{r Ride length calculation}
+#Calculating ride length as seconds
+data_year$ride_length_2 <- difftime(as_datetime(data_year$ended_at,format=("%d-%m-%Y %H:%M")), as_datetime(data_year$started_at,format=("%d-%m-%Y %H:%M")))
+
+```
+
+##### Changing the data type of "ride_length_2".
+
+```{r Data type change}
+#Converting ride_length_2 as numeric value
+data_year$ride_length_2<- as.numeric(as.character(data_year$ride_length_2))
+```
+
+##### Removing negatives in "ride_length_2" and creating a new version of the dataset "data_year_v2".
+
+```{r Removing negatives - new dataset}
+#Removing negatives missed in "ride_length_2" and creating a new version of the dataset
+data_year_v2<-data_year[!(data_year$ride_length_2<0),]
+```
+
+##### Inspection of data before analysis.
+
+```{r Inspecting data}
+#Inspecting data before analysis
+colnames(data_year_v2)
+nrow(data_year_v2)
+dim(data_year_v2)
+head(data_year_v2)
+str(data_year_v2)
+summary(data_year_v2)
+```
+
+## Data analysis
+
+##### Descriptive analysis on ride length.
+
+```{r Ride length analysis}
+#Descriptive analysis on ride length
+seconds_to_period(mean(data_year_v2$ride_length_2))
+seconds_to_period(median(data_year_v2$ride_length_2))
+seconds_to_period(max(data_year_v2$ride_length_2))
+seconds_to_period(min(data_year_v2$ride_length_2))
+```
+
+##### Comparing member and casual ride lengths.
+
+```{r Member vs casual}
+#Comparing member and casual
+aggregate(data_year_v2$ride_length_2 ~ data_year_v2$member_casual, FUN = mean)
+aggregate(data_year_v2$ride_length_2 ~ data_year_v2$member_casual, FUN = median)
+aggregate(data_year_v2$ride_length_2 ~ data_year_v2$member_casual, FUN = max)
+aggregate(data_year_v2$ride_length_2 ~ data_year_v2$member_casual, FUN = min)
+```
+
+##### Comparing member and casual ride lengths by weekday.
+
+```{r Weekday comparison}
+#Comparing by day
+aggregate(data_year_v2$ride_length_2 ~ data_year_v2$member_casual + data_year_v2$day_of_week, FUN = mean)
+aggregate(data_year_v2$ride_length_2 ~ data_year_v2$member_casual + data_year_v2$day_of_week, FUN = median)
+```
+
+##### Comparing member and casual ride lengths by month.
+
+```{r Month comparison}
+#Comparing by month
+aggregate(data_year_v2$ride_length_2 ~ data_year_v2$member_casual + data_year_v2$month, FUN = mean)
+aggregate(data_year_v2$ride_length_2 ~ data_year_v2$member_casual + data_year_v2$month, FUN = median)
+```
+
+##### Member and casual use of rideable types.
+
+```{r Comparing rideables}
+#Rideable types compared
+data_year_v2 %>% count(rideable_type, member_casual)
+```
+
+##### Comparing member and casual ride counts and ride lengths by day.
+
+```{r Ride count by day}
+#Ridership by day and membership
+data_year_v2 %>%
+  mutate(weekday=wday(started_at,label=TRUE)) %>% 
+  group_by(member_casual,weekday) %>% 
+  summarise(num_of_rides=n(), average_duration=seconds_to_period(mean(ride_length_2)), median_ride_length=seconds_to_period(median(ride_length_2))) %>%
+  arrange(member_casual, weekday)
+```
+
+##### Comparing member and casual ride counts and ride lengths by month.
+
+```{r Ride count by month}
+#Ridership by month and membership
+data_year_v2 %>%
+  group_by(member_casual,month) %>% 
+  summarise(num_of_rides=n(), average_duration=seconds_to_period(mean(ride_length_2)), median_ride_length=seconds_to_period(median(ride_length_2))) %>%
+  arrange(member_casual, month)
+```
+
+##### Visual comparing member and casual ride counts by day.
+
+```{r Visual by day}
+#Visual for ridership by day
+data_year_v2 %>%
+  mutate(weekday=wday(started_at,label=TRUE)) %>% 
+  group_by(member_casual,weekday) %>% 
+  summarise(num_of_rides=n()) %>%
+  arrange(member_casual, weekday) %>% 
+  ggplot(aes(x = weekday, y = num_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+##### Visual comparing member and casual ride counts by month.
+
+```{r Visual by month}
+#visual for ridership by month
+data_year_v2 %>%
+  group_by(member_casual,month) %>% 
+  summarise(num_of_rides=n()) %>%
+  arrange(member_casual, month) %>% 
+  ggplot(aes(x = month, y = num_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+##### Visual comparing member and casual daily ride length averages.
+
+```{r Visual daily ride length}
+#Visual for ridership day averages
+data_year_v2 %>%
+  mutate(weekday=wday(started_at,label=TRUE)) %>% 
+  group_by(member_casual,weekday) %>% 
+  summarise(num_of_rides=n(), average_duration=mean(ride_length_2)) %>%
+  arrange(member_casual, weekday) %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+##### Visual comparing member and casual monthly ride length averages.
+
+```{r Visual monthly ride length}
+#Visual for ridership month averages
+data_year_v2 %>%
+  group_by(member_casual,month) %>% 
+  summarise(num_of_rides=n(), average_duration=mean(ride_length_2)) %>%
+  arrange(member_casual, month) %>% 
+  ggplot(aes(x = month, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+##### Visual comparing member and casual daily ride medians.
+
+```{r Visual daily median}
+#Visual for ridership day medians
+data_year_v2 %>%
+  mutate(weekday=wday(started_at,label=TRUE)) %>% 
+  group_by(member_casual,weekday) %>% 
+  summarise(num_of_rides=n(), median_ride_length=median(ride_length_2)) %>%
+  arrange(member_casual, weekday) %>% 
+  ggplot(aes(x = weekday, y = median_ride_length, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+##### Visual comparing member and casual monthly ride medians.
+
+```{r Visual monthly medians}
+#Visual for ridership month medians
+data_year_v2 %>%
+  group_by(member_casual,month) %>% 
+  summarise(num_of_rides=n(), median_ride_length=median(ride_length_2)) %>%
+  arrange(member_casual, month) %>% 
+  ggplot(aes(x = month, y = median_ride_length, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+## Exporting data
+
+##### Exporting data for further analysis and visualization.
+
+```{r Export}
+#.csv data for export
+daily_avg_med<-data_year_v2 %>%
+  mutate(weekday=wday(started_at,label=TRUE)) %>% 
+  group_by(member_casual,weekday) %>% 
+  summarise(num_of_rides=n(), average_duration=seconds_to_period(mean(ride_length_2)), median_ride_length=seconds_to_period(median(ride_length_2))) %>%
+  arrange(member_casual, weekday)
+write.csv(daily_avg_med, file="daily_avg_med.csv")
+
+monthly_avg_med<-data_year_v2 %>%
+  group_by(member_casual,month) %>% 
+  summarise(num_of_rides=n(), average_duration=seconds_to_period(mean(ride_length_2)), median_ride_length=seconds_to_period(median(ride_length_2))) %>%
+  arrange(member_casual, month)
+write.csv(monthly_avg_med, file="monthly_avg_med.csv")
+
+rideable_comp<-data_year_v2 %>% count(rideable_type, member_casual)
+write.csv(rideable_comp, file="rideable_comp.csv")
+```
